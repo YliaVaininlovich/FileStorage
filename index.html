@@ -31,13 +31,15 @@
         <br> <br>
         <button type="submit">Upload</button>
     </form>
-
+    <br> <br>
     <div id="progressBar" class="progress">
-        <div class="progress-bar"></div>
+        <div class="progress-bar">
+            <div id="progress-text"></div>
+        </div>
     </div>
 
     <ul id="fileList">
-        <!-- Pагруженные файлы -->
+        <!-- Списое из загруженных файлов -->
     </ul>
 
     <script>
@@ -45,6 +47,9 @@
         const fileInput = document.getElementById('fileInput');
         const progressBar = document.querySelector('.progress-bar');
         const fileList = document.getElementById('fileList');
+        const progressText = document.getElementById('progress-text');
+        const ws = new WebSocket(`ws://${window.location.host}`);
+
 
         uploadForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -52,17 +57,34 @@
             const file = fileInput.files[0];
             const comment = uploadForm.elements['comment'].value;
 
+            // Сброс прогресс-бара в исходное состояние
+            progressBar.style.width = '0%';
+             progressText.textContent = '';
+
             const formData = new FormData();
             formData.append('file', file);
             formData.append('comment', comment);
 
+        
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/upload');
-            xhr.upload.addEventListener('progress', (e) => {
-                const progress = Math.round((e.loaded / e.total) * 100);
-                progressBar.style.width = progress + '%';
-                progressBar.innerHTML = progress + '%';
-            });
+
+            // xhr.upload.addEventListener('progress', (event) => {
+            //     if (event.lengthComputable) {
+            //             const progress = Math.round((event.loaded / event.total) * 100);
+            //             progressBar.style.width = `${progress}%`;
+            //             progressText.textContent = `${progress}%`;
+            //         }
+            // });
+
+            xhr.addEventListener('load', () => {
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Upload complete';
+                });
+
+                xhr.addEventListener('error', () => {
+                    progressText.textContent = 'Upload failed';
+                });
 
             xhr.onreadystatechange = () => {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
@@ -71,8 +93,6 @@
                         const listItem = document.createElement('li');
                         listItem.innerHTML = `<a href="${response.url}" download>${response.filename}</a> - ${response.comment}`;
                         fileList.appendChild(listItem);
-                        progressBar.style.width = '0%';
-                        progressBar.innerHTML = '0%';
                     } else {
                         console.error(xhr.status);
                     }
@@ -80,6 +100,17 @@
             };
 
             xhr.send(formData);
+        });
+
+        ws.addEventListener('message', (event) => {
+            const progressData = JSON.parse(event.data);
+            const progress = progressData.progress;
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+
+            if (progress === 100) {
+                progressText.textContent = 'Upload complete';
+            }
         });
     </script>
 </body>
