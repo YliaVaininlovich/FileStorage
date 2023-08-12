@@ -1,0 +1,72 @@
+  <script>
+    
+    // Функция для отправки голоса на сервер
+    function vote() {
+      const variantKey = document.querySelector('input[name="variant"]:checked').value;
+      fetch('/vote', {
+        method: 'POST',
+        headevariant.key;
+        const label = document.createElement('label');
+        label.innerHTML = variant.name;
+        variantsDiv.appendChild(input);
+        variantsDiv.appendChild(label);
+        variantsDiv.appendChild(document.createElement('br'));
+      });
+    }
+
+    // Функция для отображения статистики голосования
+    function showStat(stat) {
+      const statList = document.getElementById('stat');
+      statList.innerHTML = '';
+      Object.keys(stat).forEach(key => {
+        const li = document.createElement('li');
+        li.innerHTML = `Вариант ${key}: ${stat[key].voice} голосов`;
+        statList.appendChild(li);
+      });
+    }
+
+    // Загружаем список вариантов голосования при загрузке страницы
+    fetch('/variants')
+      .then(response => response.json())
+      .then(data => showVariants(data));
+
+    // Загружаем текущую статистику голосования при загрузке страницы
+    fetch('/stat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => showStat(data));
+
+//скачивание данных 
+function voteDownload(accept) {
+    
+  const headers = {
+             'Accept': accept 
+      };
+      
+    fetch('/voteDownload', {headers})
+  .then(response => response.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    if (accept=='text/html')
+      a.download = 'statHTML.html';
+    else if (accept=='text/xml')
+      a.download = 'statXML.xml';
+    else if (accept=='application/json')
+      a.download = 'statJSON.json';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  })
+  .catch(error => {
+    console.error('Ошибка при загрузке файла:', error);
+  });
+  }
+
+  </script>
+</body>
+</html>
