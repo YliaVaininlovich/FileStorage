@@ -131,7 +131,7 @@ function broadcastProgress(progress) {
 //-----------------------------------------------------
 
 // Запуск сервера
-const port = 3050;
+const port = 7280;
 server.listen(port, () => {
   console.log('Сервер запущен на порту ' + port);
 });
