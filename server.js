@@ -1,11 +1,11 @@
 const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+//const io = require('socket.io')(server);
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-
+const WebSocket = require('ws');
 
 // Путь к папке для загруженных файлов
 const uploadPath = __dirname + '/uploads/';
@@ -29,13 +29,9 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    cb(null, file.originalname);
+    const filename = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    cb(null, filename);
   }
-  //,
-  // fileFilter: function (req, file, cb) {
-  //   cb(null, true);
-  // },
-  // encoding: 'utf-8' 
 });
 
 // Создание экземпляра Multer
@@ -43,15 +39,6 @@ const upload = multer({ storage: storage });
 
 // Разрешение статических файлов
 app.use(express.static(__dirname + '/public'));
-
-//Установка кодировки
-//app.use(express.urlencoded({ extended: true }));
-
-// Middleware для установки кодировки UTF-8
-app.use((req, res, next) => {
-  res.set('Content-Type', 'text/html; charset=utf-8');
-  next();
-});
 
 // Маршрут для корневого пути
 app.get('/', (req, res) => {
@@ -65,10 +52,13 @@ app.post('/upload', upload.single('file'), (req, res) => {
   const filename = req.file.originalname;
 
   // Отправка сообщения о загрузке файла через WebSocket
-  io.emit('uploadProgress', { progress: 100 });
-
+  //io.emit('uploadProgress', { progress: 100 });
+ // broadcastProgress(100);
+  broadcastProgress({ progress: 100 });
+  
   // Сохранение комментария в отдельный файл
-  const commentFilePath = path.join(commentPath, `${filename}.txt`);
+  const filenameComment = Buffer.from(filename, 'latin1').toString('utf8')
+  const commentFilePath = path.join(commentPath, `${filenameComment}.txt`);
   fs.writeFileSync(commentFilePath, comment);
 
   res.send('Файл успешно загружен!');
@@ -112,18 +102,36 @@ app.get('/download/:filename', (req, res) => {
   });
 });
 
-// Настройка WebSocket-соединения
-io.on('connection', (socket) => {
-  console.log('Новое соединение WebSocket: ' + socket.id);
+//----------WebSocket-------------------------
 
-  // Обработка отключения клиента
-  socket.on('disconnect', () => {
-    console.log('Соединение WebSocket закрыто: ' + socket.id);
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+  console.log('Новое соединение WebSocket');
+
+  // Обработка сообщений от клиента
+  ws.on('message', (message) => {
+    console.log('Получено сообщение от клиента:', message);
+  });
+
+  // Обработка закрытия соединения клиентом
+  ws.on('close', () => {
+    console.log('Соединение WebSocket закрыто');
   });
 });
 
+// Функция для отправки сообщения о прогрессе загрузки файла клиентам
+function broadcastProgress(progress) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ progress }));
+    }
+  });
+}
+//-----------------------------------------------------
+
 // Запуск сервера
-const port = 7280;
+const port = 3050;
 server.listen(port, () => {
   console.log('Сервер запущен на порту ' + port);
 });

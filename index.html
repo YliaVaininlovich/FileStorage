@@ -1,123 +1,196 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FileStorage</title>
-  <style>
-    #progress {
-      width: 0%;
-      height: 20px;
-      background-color: blue;
-      transition: width 0.3s ease-in-out;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <title>Загрузка файлов</title>
 </head>
 
 <body>
-  <h1>FileStorage</h1>
+  <h1>Загрузка файлов</h1>
+  
+  <input type="file" id="fileInput" />
+  <br /><br />
+  <input type="text" id="commentInput" placeholder="Комментарий" required />
+  <br /><br />
+  <button id="uploadButton">Загрузить</button>
+  <br /><br />
+  <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
 
-  <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" required>
-    <input type="text" name="comment" placeholder="Комментарий" required>
-    <button type="submit">Upload</button>
-  </form>
-  <br><br>
-  <div id="progressBar" style="display: none;">
-    <br><br>
-    <div id="progress"></div>
-  </div>
+  <h2>Список файлов</h2>
 
-  <h2>Список файлов:</h2>
+  <!-- Список файлов -->
   <ul id="fileList"></ul>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const fileInput = document.getElementById('fileInput');
+    const commentInput = document.getElementById('commentInput');
+    const uploadButton = document.getElementById('uploadButton');
+    const progressBar = document.getElementById('progressBar');
+    const fileList = document.getElementById('fileList');
 
-    // Обработка события отправки формы загрузки файла
-    document.getElementById('uploadForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-
-      const fileInput = document.querySelector('input[type="file"]');
-      const commentInput = document.querySelector('input[name="comment"]');
+    // Обработчик нажатия кнопки "Загрузить"
+    uploadButton.addEventListener('click', () => {
       const file = fileInput.files[0];
-      const comment = commentInput.value;
 
-      if (file && comment) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('comment', comment);
+      if (!file) {
+        alert('Выберите файл для загрузки');
+        return;
+      }
 
-        const progressBar = document.getElementById('progressBar');
+      if (commentInput.value =="") {
+        alert('Отсутствует комментарий');
+        return;
+      }
+
+      const comment = commentInput.value;   
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('comment', comment);
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = (event.loaded / event.total) * 100;
+          progressBar.value = percentComplete;
+        }
+      };
+
+      xhr.onloadstart = () => {
         progressBar.style.display = 'block';
+        progressBar.value = 0;
+      };
 
-        const progress = document.getElementById('progress');
-
-        // Отправка данных формы через XMLHttpRequest
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload');
-        xhr.upload.addEventListener('progress', (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            progress.style.width = percent + '%';
-          }
-        });
-        xhr.addEventListener('load', (event) => {
-          progressBar.style.display = 'none';
-          console.log(xhr.responseText);
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          console.log('Файл успешно загружен:', xhr.responseText);
           fileInput.value = '';
           commentInput.value = '';
+          progressBar.style.display = 'none';
           loadFileList();
-        });
-        xhr.send(formData);
+        } else {
+          console.error('Произошла ошибка при загрузке файла:', xhr.status);
+          progressBar.style.display = 'none';
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error('Произошла ошибка при загрузке файла');
+        progressBar.style.display = 'none';
+      };
+
+      xhr.open('POST', '/upload');
+      xhr.send(formData);
+    });
+      //-----------------------------------
+// Создание WebSocket-соединения 
+// const socket = new WebSocket('ws://localhost:3050'); 
+
+// // Обработчик события открытия WebSocket-соединения 
+// socket.onopen = () => { 
+// console.log('WebSocket соединение установлено'); }; 
+
+// // Обработчик события закрытия WebSocket-соединения 
+// socket.onclose = () => { 
+// console.log('WebSocket соединение закрыто'); }; 
+
+// // Обработчик события получения сообщения по WebSocket 
+// socket.onmessage = (event) => { 
+//   const message = JSON.parse(event.data); 
+//   console.log('message   ', message );
+// if (message.type === 'progress') { 
+// progressBar.value = message.progress; } 
+// else if (message.type === 'fileUploaded')
+ 
+// { console.log('Файл успешно загружен:', message.filename); 
+// fileInput.value = ''; 
+// commentInput.value = ''; 
+// progressBar.style.display = 'none'; 
+// loadFileList(); 
+// } 
+// }; 
+
+// // Обработчик нажатия кнопки "Загрузить" 
+// uploadButton.addEventListener('click', () => { 
+
+// const file = fileInput.files[0]; 
+// if (!file) { alert('Выберите файл для загрузки'); return; } 
+// if (commentInput.value === '') { alert('Отсутствует комментарий'); return; } 
+
+// const comment = commentInput.value; 
+// const formData = new FormData(); 
+// formData.append('file', file); 
+// formData.append('comment', comment); 
+
+// // Отправка сообщения о начале загрузки файла по WebSocket 
+// socket.send(JSON.stringify({ type: 'fileUploadStart' })); 
+
+// const xhr = new XMLHttpRequest(); 
+
+// xhr.upload.onprogress = (event) => { 
+// if (event.lengthComputable) { 
+// const percentComplete = (event.loaded / event.total) * 100; 
+
+// // Отправка сообщения о прогрессе загрузки файла по WebSocket 
+// socket.send(JSON.stringify({ type: 'progress', progress: percentComplete })); } }; 
+// xhr.onloadstart = () => { 
+// progressBar.style.display = 'block'; 
+// progressBar.value = 0; }; 
+
+// xhr.onload = () => { if (xhr.status === 200) { 
+//   console.log('xhr.status   ', xhr.status ); 
+// // Отправка сообщения о успешной загрузке файла по WebSocket 
+// socket.send( JSON.stringify({ type: 'fileUploaded', filename: file.name }) ); 
+
+// } 
+// else { 
+// console.error('Произошла ошибка при загрузке файла:', xhr.status); 
+// progressBar.style.display = 'none'; } }; 
+// xhr.onerror = () => { 
+// console.error('Произошла ошибка при загрузке файла'); 
+// progressBar.style.display = 'none'; }; 
+// xhr.open('POST', '/upload'); 
+// xhr.send(formData); 
+
+// }); 
+      //----------------------------------
+
+    // Функция для загрузки списка файлов
+    function loadFileList() {
+      fetch('/files')
+    .then(response => {
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error('Произошла ошибка при получении списка файлов');
       }
+    })
+    .then(files => {
+
+          fileList.innerHTML = '';
+
+          files.forEach((file) => {
+            const listItem = document.createElement('li');
+            const link = document.createElement('a');
+            link.href = '/download/' + encodeURIComponent(file.filename);
+            link.textContent = file.filename;
+
+            const comment = document.createElement('span');
+            comment.textContent = ' - ' + file.comment;
+
+            listItem.appendChild(link);
+            listItem.appendChild(comment);
+            fileList.appendChild(listItem);
+          });
+    })
+    .catch(error => {
+      console.error(error);
     });
+}
 
-    // Загрузка списка файлов при открытии страницы
-    window.addEventListener('load', () => {
-      loadFileList();
-    });
-
-    // Загрузка списка файлов через WebSocket
-  function loadFileList() {
-    const fileList = document.getElementById('fileList');
-    fileList.innerHTML = 'Загрузка...';
-
-    fetch('/files')
-      .then(response => response.json())
-      .then(data => {
-        fileList.innerHTML = '';
-
-        data.forEach(item => {
-          const filename = item.filename;
-          const comment = item.comment;
-
-          const li = document.createElement('li');
-          const link = document.createElement('a');
-          link.href = '/download/' + encodeURIComponent(filename);
-          link.textContent = filename;
-
-          const commentText = document.createElement('span');
-          commentText.textContent = ' - ' + comment;  // Выводим комментарий
-
-          li.appendChild(link);
-          li.appendChild(commentText);
-
-          fileList.appendChild(li);
-        });
-      })
-      .catch(error => {
-        console.error(error);
-        fileList.innerHTML = 'Ошибка загрузки файла';
-      });
-  }
-
-    // Обработка события получения сообщения о прогрессе загрузки файла через WebSocket
-    socket.on('uploadProgress', (data) => {
-      const progress = document.getElementById('progress');
-      progress.style.width = data.progress + '%';
-    });
+    // Загрузка списка файлов при загрузке страницы
+    loadFileList();
   </script>
 </body>
 </html>
